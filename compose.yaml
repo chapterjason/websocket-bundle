@@ -1,0 +1,40 @@
+name: websocket-bundle-e2e
+
+x-member: &member
+  image: ${IMAGE:-docker.io/chapterjason/frankenphp-websocket:edge}
+  volumes:
+    - .:/app
+  working_dir: /app
+  security_opt:
+    - label=disable
+  command: ["frankenphp", "run", "--config", "/app/tests/E2E/App/Caddyfile", "--adapter", "caddyfile"]
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+    interval: 1s
+    timeout: 5s
+    retries: 60
+
+services:
+  a:
+    <<: *member
+    environment:
+      E2E_PEER: b:7070
+
+  b:
+    <<: *member
+    environment:
+      E2E_PEER: a:7070
+
+  phpunit:
+    image: ${IMAGE:-docker.io/chapterjason/frankenphp-websocket:edge}
+    volumes:
+      - .:/app
+    working_dir: /app
+    security_opt:
+      - label=disable
+    entrypoint: ["php", "vendor/bin/phpunit", "--testsuite", "e2e"]
+    depends_on:
+      a:
+        condition: service_healthy
+      b:
+        condition: service_healthy

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  code-style:
+    name: Code style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - uses: ramsey/composer-install@v4
+
+      - run: vendor/bin/php-cs-fixer fix --dry-run --diff
+
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - uses: ramsey/composer-install@v4
+
+      - run: vendor/bin/phpstan analyse --no-progress
+
+  tests:
+    name: Tests (Symfony ${{ matrix.symfony }}, ${{ matrix.dependencies }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symfony: '8.1.*'
+            dependencies: lowest
+            phpunit-flags: --do-not-fail-on-deprecation
+          - symfony: '8.*'
+            dependencies: highest
+            phpunit-flags: ''
+    env:
+      SYMFONY_REQUIRE: ${{ matrix.symfony }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: flex
+
+      - uses: ramsey/composer-install@v4
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+
+      - name: Unit and integration tests
+        run: vendor/bin/phpunit ${{ matrix.phpunit-flags }}
+
+      - name: E2E tests
+        run: scripts/e2e.sh ${{ matrix.phpunit-flags }}

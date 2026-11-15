@@ -1,0 +1,28 @@
+{
+	admin off
+	auto_https off
+	skip_install_trust
+
+	cluster mesh {
+		listen :7070
+		peers {$E2E_PEER}
+		secret e2e-secret
+	}
+
+	cluster member {
+		query_timeout 2s
+		worker /app/tests/E2E/App/bin/cluster.php 1
+	}
+}
+
+http://:8080 {
+	root /app/tests/E2E/App/public
+
+	websocket /chat {
+		worker /app/tests/E2E/App/bin/websocket.php 1
+	}
+
+	php_server {
+		worker /app/tests/E2E/App/public/index.php 2
+	}
+}
